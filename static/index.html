@@ -5,18 +5,414 @@
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" integrity="sha384-cs/chFZiN24E4KMATLdqdvsezGxaGsi4hLGOzlXwp5UZB1LY//20VyM2taTB4QvJ" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" integrity="sha384-uefMccjFJAIv6A+rW+L4AHf99KvxDjWSu1z9VI8SKNVmz4sk7buKt/6v9KI65qnm" crossorigin="anonymous"></script>
+    <style rel="stylesheet">
+/*
+ * file: index.css
+ **/
+
+body {
+  padding: 0px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+}
+
+      .page {
+        margin-top: 60px;
+      }
+
+      .row{
+        overflow: hidden;
+      }
+
+      [class*="col-"]{
+        margin-bottom: -99999px;
+        padding-bottom: 99999px;
+      }
+
+      textarea {
+        font-family: monospace;
+      }
+
+      span {
+        display: inline-block;
+      }
+
+      .btn:focus,
+      .btn:active:focus,
+      .btn.active:focus,
+      .btn.focus,
+      .btn:active.focus,
+      .btn.active.focus {
+        outline: none;
+        box-shadow: none;
+      }
+
+      .container {
+        margin-left: auto;
+        padding-left: 0px;
+      }
+
+      .terminal-text-area {
+        background-color: #ffffff;
+      }
+
+      .editor-title,
+      .terminal-title {
+        margin-left: 10px;
+      }
+
+      .editor {
+        border: 2px solid red;
+        border-radius: 5px;
+      }
+
+      .editor {
+        margin-left: 0px;
+      }
+
+      .terminal {      
+        margin-top: 5px; 
+        margin-bottom: 5px; 
+        margin-right: 5px;
+        margin-left: 5px; 
+        height:130px; 
+        overflow:auto;
+      }
+
+      .terminal-edge {
+        overflow:auto;
+        font-family: monospace;
+        width: 500px;
+        height: 130px;
+      }
+
+    </style>
   </head>
   <body>
     <nav class="navbar fixed-top navbar-expand-lg navbar-dark bg-danger">
       <a class="navbar-brand" href="#"> <strong> Summer Of PYNQ</strong> </a>
     </nav>
     <div class="body" id="workspace">
-      
+      <div class="page">
+        <div class="container">
+          <div class="row">
+            <div class='editor-area col-lg-6'>
+              <h4 class="editor-title">Text Area</h1>
+              <div class="editor-container" style="width: 450px">
+                <textarea id="text-input" class="editor" cols=60 rows=22>Please input something :)</textarea>
+              </div>
+            </div>
+            <div class="plot-container col-lg-6">
+              <h4>Tree Generator</h4> 
+              <div id="plot-area" class="plot-area" style="width: 500px; height: 360px; border: 2px solid red; border-radius: 5px">
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-lg-6 terminal-container" style="margin-top: 5px;">
+              <div style="width: 500px">
+                <h4 class="terminal-title" style="float: left">Computing Info</h4>
+                <button id="compute" type="button" class="btn btn-outline-danger" style="float: right; display: inline; margin-bottom: 5px;">Press me to compute</button>
+              </div>
+              <div class="container" style="width=500px">
+                <div class='terminal-edge', style='border: 2px solid red; border-radius: 5px;'>
+                  <div id="terminal" style='margin: 1 1 1 1; text-align: justify; width: 500px'>
+                    <div class="initial-info">
+                      <span class="badge badge-danger">Welcome</span>
+                      <span>-----------------------------------------------    </span>
+                      <span>This is a sub-project of Xilinx FPGA Summer School.</span>
+                      <span>This software provides a web based GUI to display  </span>
+                      <span>huffman encoding algorithm with hardware boosting. </span>
+                      <span>View Github: https://github.com/sopynq             </span>
+                      <span>for more details</span>
+                      <span>-----------------------------------------------</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6 terminal-container" style="margin-top: 5px;">
+              <img src="http://localhost:8000/img/pynq.png" style="margin-top: 10px;" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </body>
-  <script>
 
+  <script>
+    function compute_tree_data(symbols) {
+      var node = { 'name': '', children: [], parent: []  }
+      var tree_data = [ { 'name': '0', children: [], parent: 'null' } ]
+      var curr_node = { 'name': '', children: [], parent: [] }
+      var prev_node = { 'name': '', children: [], parent: [] }
+      symbols.forEach(e => {
+        // e.sym
+        // e.encoding
+        e.encoding = '0' + e.encoding
+        for (var i = e.encoding.length - 1; i > 0; i --) {
+          if (i == e.encoding.length - 1) {
+            // leaf node
+            curr_node['name'] = e.sym
+            curr_node.children = 'null'
+            curr_node.parent = e.encoding.slice(0, i)
+            console.log(curr_node)
+          } else if (i != 1) {
+          }
+        }
+        console.log(curr_node)
+      })
+      return Array.from(new Set(tree_data))
+    }
+
+  </script>
+
+  <script>
+    // button and callback
+    $('#compute').on('click', (e) => {
+      //draw(tree_data)
+      var ws = new WebSocket("ws://192.168.2.79:8888/ws");
+      ws.onopen = function() {
+        console.log($('#text-input')[0].value)
+        ws.send($('#text-input')[0].value)
+        ws.onmessage = function (evt) {
+          // append info node
+          append_info_node(evt)
+          var tmp = compute_tree_data(JSON.parse(evt.data).encoding.symbols)
+          console.log(tmp)
+          var tree_data = [ { 'name': '0', children: [
+            { 'name': '00', parent: '0' },
+            { 'name': '01', parent: '0' },
+            
+          ], parent: 'null' } ]
+
+          draw(tree_data)
+        }
+      }
+    })
+
+function append_info_node(msg) {
+  var msg_node = document.createElement('span')
+  var badge = document.createElement('span')
+  var div = document.createElement('div')
+  var text = document.createTextNode(' Encoding ');
+  badge.className = 'badge badge-danger';
+  badge.appendChild(text)
+  div.append(badge)
+
+  // blank
+  msg_data = JSON.parse(msg.data)
+  console.log(msg_data)
+  var msg_node = document.createElement('span')
+  var text = document.createTextNode(' consume: ' + msg_data.consume + ' seconds');
+  msg_node.appendChild(text)
+  div.appendChild(msg_node)
+  terminal.appendChild(div)
+
+  // append nodes number
+  var div = document.createElement('div')
+  var msg_node = document.createElement('span')
+  var text = document.createTextNode(' encoding: ' + msg_data.encoding.total + ' symbols');
+  msg_node.appendChild(text)
+  div.appendChild(msg_node)
+  terminal.appendChild(div)
+
+  msg_data.encoding.symbols.forEach(ele => {
+    var div = document.createElement('div')
+    var msg_node = document.createElement('span')
+    var text = document.createTextNode(' symbol : ' + ele.sym + ' encoding : ' + ele.encoding);
+    msg_node.appendChild(text)
+    div.appendChild(msg_node)
+    terminal.appendChild(div) 
+  })
+
+  terminal.scrollTop = terminal.scrollHeight
+}
+  </script>
+
+  <!-- load the d3.js library -->	
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <style>
+.node {
+  cursor: pointer;
+}
+
+    .node circle {
+      fill: #fff;
+      stroke: steelblue;
+      stroke-width: 3px;
+    }
+
+    .node text {
+      font: 12px sans-serif;
+    }
+
+    .link {
+      fill: none;
+      stroke: #ccc;
+      stroke-width: 2px;
+    }
+  </style>
+  <script>
+    // d3.js
+
+    var tree_data = [
+      {
+        "name": "Top Level",
+        "parent": "null",
+        "children": [
+          {
+            "name": "Level 2: A",
+            "parent": "Top Level",
+            "children": [
+              {
+                "name": "Son of A",
+                "parent": "Level 2: A"
+              },
+              {
+                "name": "Daughter of A",
+                "parent": "Level 2: A"
+              }
+            ]
+          },
+          {
+            "name": "Level 2: B",
+            "parent": "Top Level"
+          } 
+        ]
+      }
+    ];
+
+
+// ************** Generate the tree diagram	 *****************
+function draw(treeData) {
+  var margin = {top: 5, right: 20, bottom: 250, left: 5},
+    width = 500 - margin.right - margin.left,
+    height = 500 - margin.top - margin.bottom;
+
+  var i = 0,
+    duration = 750,
+    root;
+
+  var tree = d3.layout.tree()
+    .size([height, width]);
+
+  var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+  var svg = d3.select("#plot-area").append("svg")
+    .attr("width", width + margin.right + margin.left)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  root = treeData[0];
+  root.x0 = height / 2;
+  root.y0 = 0;
+
+  update(root);
+
+  d3.select(self.frameElement).style("height", "420px");
+
+  function update(source) {
+
+    // Compute the new tree layout.
+    var nodes = tree.nodes(root).reverse(),
+      links = tree.links(nodes);
+
+    // Normalize for fixed-depth.
+    nodes.forEach(function(d) { d.y = d.depth * 180; });
+
+    // Update the nodes…
+    var node = svg.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+    // Enter any new nodes at the parent's previous position.
+    var nodeEnter = node.enter().append("g")
+      .attr("class", "node")
+      .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
+      .on("click", click);
+
+    nodeEnter.append("circle")
+      .attr("r", 1e-6)
+      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+    nodeEnter.append("text")
+      .attr("x", function(d) { return d.children || d._children ? -13 : 13; })
+      .attr("dy", ".35em")
+      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1e-6);
+
+    // Transition nodes to their new position.
+    var nodeUpdate = node.transition()
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+    nodeUpdate.select("circle")
+      .attr("r", 10)
+      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+    nodeUpdate.select("text")
+      .style("fill-opacity", 1);
+
+    // Transition exiting nodes to the parent's new position.
+    var nodeExit = node.exit().transition()
+      .duration(duration)
+      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+      .remove();
+
+    nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+    nodeExit.select("text")
+      .style("fill-opacity", 1e-6);
+
+    // Update the links…
+    var link = svg.selectAll("path.link")
+      .data(links, function(d) { return d.target.id; });
+
+    // Enter any new links at the parent's previous position.
+    link.enter().insert("path", "g")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        var o = {x: source.x0, y: source.y0};
+        return diagonal({source: o, target: o});
+      });
+
+    // Transition links to their new position.
+    link.transition()
+      .duration(duration)
+      .attr("d", diagonal);
+
+    // Transition exiting nodes to the parent's new position.
+    link.exit().transition()
+      .duration(duration)
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return diagonal({source: o, target: o});
+      })
+      .remove();
+
+    // Stash the old positions for transition.
+    nodes.forEach(function(d) {
+      d.x0 = d.x;
+      d.y0 = d.y;
+    });
+  }
+
+  // Toggle children on click.
+  function click(d) {
+    if (d.children) {
+      d._children = d.children;
+      d.children = null;
+    } else {
+      d.children = d._children;
+      d._children = null;
+    }
+    update(d);
+  }
+}
   </script>
 </html>
 

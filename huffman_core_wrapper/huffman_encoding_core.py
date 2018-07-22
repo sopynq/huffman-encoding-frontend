@@ -1,7 +1,9 @@
 # Create only on instance of huffman encoding core
 import os
 from pynq import Overlay
+import time
 from huffman_core_wrapper.reg_table import *
+import asyncio
 
 class Singleton(object):
   def __new__(cls, *args, **kw):
@@ -29,8 +31,6 @@ class HuffmanEncodingCore(Singleton):
   def feed_data(self, freq_table):
     if (not freq_table):
       return
-    print(freq_table)
-    
     # write symbol and frequency to huffman core
     for idx, ele in enumerate(freq_table):
       # write to encoding core memory
@@ -39,41 +39,21 @@ class HuffmanEncodingCore(Singleton):
         self.huff_core.write(sym_histo_val_addr + 4*idx, ord(val))
         self.huff_core.write(sym_histo_freq_addr + 4*idx, freq)
 
-  async def calc_encoding(self, freq_table):
-    feed_data(freq_table)
-    start_calc()
-        # wait until done
-    from time import sleep
-    sleep(1)
-    
-    # read them out
-    print(self.huff_core.read(non_zero_cnt_data_addr))
-    get_bin = lambda x, n: format(x, 'b').zfill(n)
-    for ele in freq_table:
+  def read_code_word(self, freq_table):
+    encoding = { 'symbol': [  ], 'total': 0 }
+    for idx, ele in enumerate(freq_table):
       if (not ele == None):
-        offset = ord(ele[0])
-        print(get_bin(self.huff_core.read(encoding_addr + 4*offset), 32))
+        (val, freq) = ele
+        encoding['symbol'].append(self.huff_core.read(encoding_addr + 4*ord(val)))
+    encoding['total'] = self.huff_core.read(non_zero_cnt_data_addr)
+    return encoding
 
-
-#   async def huff_intr_handler(huff):
-#     while True:
-#       await huff.interrupt.wait()
-#       print('intr received from ' + str(huff.read(0x000c)))
-#       if (huff.read(0x000c) == 1):
-#         # read number of symbols
-#         num = huff.read(0x1000)
-#         print('There are ' + str(num) + ' symbols in huffman tree:')
-#
-#         # read encoding
-#         get_bin = lambda x, n: format(x, 'b').zfill(n)
-#         for idx, sym in enumerate(symbol_table):
-#           encoding = huff.read(0x0c00 + 4*ord(sym['symbol']))
-#           print('symbol : ' + sym['symbol'] + ', code word : ' + get_bin(encoding, 32))
-#       if (huff.read(0x000c) & 0x1):
-#         huff.write(0x000c, 1)
-#
-#   # get EventLoop:
-#   loop = asyncio.get_event_loop()
-#   # run coroutine
-#   loop.run_until_complete(huff_intr_handler(huffman_encoding))
-#   loop.close()
+  def calc_encoding(self, freq_table):
+    self.feed_data(freq_table)
+    start = time.time()
+    self.start_calc()
+    end = time.time()
+    encoding = self.read_code_word(freq_table)
+    return { 'encoding': encoding, 'consume': end - start }
+    
+    

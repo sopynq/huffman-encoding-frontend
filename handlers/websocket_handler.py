@@ -15,10 +15,11 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     pass
 
   # get text (only ascii supported)
-  async def on_message(self, message):
+  def on_message(self, message):
     preprocessor = Preprocessor(message)
     freq_table = preprocessor.freq_table
-    t = await self.huff_core.calc_encoding(freq_table)
+    encoding = self.huff_core.calc_encoding(freq_table)
+    self.write_message(encoding)
 
   def on_close(self):
     pass

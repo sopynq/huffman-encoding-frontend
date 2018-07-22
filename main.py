@@ -1,6 +1,8 @@
-import tornado.ioloop
+#import tornado.ioloop
+import asyncio
 import tornado.web
 import tornado.websocket
+from tornado.platform.asyncio import AsyncIOMainLoop
 
 from configs.default import *
 from handlers.index_handler import IndexHandler
@@ -16,13 +18,15 @@ def _main():
     (r'/', IndexHandler),    
     (r'/ws', WebSocketHandler, dict(huff_core=huff_core_inst))
   ]
-
+  AsyncIOMainLoop().install()
+  ioloop = asyncio.get_event_loop()
+  
   app = tornado.web.Application(router)
   app.listen(conf_port)
-
-  # run forever
   print('huffman encoding core coroutine server start!')
-  tornado.ioloop.IOLoop.current().start()
+  ioloop.run_forever()
+  # run forever
+  # tornado.ioloop.IOLoop.current().start()
 
 if __name__ == '__main__':
   _main()
