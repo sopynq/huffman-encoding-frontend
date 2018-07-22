@@ -104,6 +104,7 @@ body {
             <div class="plot-container col-lg-6">
               <h4>Tree Generator</h4> 
               <div id="plot-area" class="plot-area" style="width: 500px; height: 360px; border: 2px solid red; border-radius: 5px">
+                <svg width="500" height="360"></svg>
               </div>
             </div>
           </div>
@@ -142,27 +143,60 @@ body {
 
   <script>
     function compute_tree_data(symbols) {
-      var node = { 'name': '', children: [], parent: []  }
-      var tree_data = [ { 'name': '0', children: [], parent: 'null' } ]
-      var curr_node = { 'name': '', children: [], parent: [] }
-      var prev_node = { 'name': '', children: [], parent: [] }
+      nodes = [ 
+        { 'id': '0', 'group': 0 }, 
+      ]
+      links = [ ]
       symbols.forEach(e => {
         // e.sym
         // e.encoding
         e.encoding = '0' + e.encoding
-        for (var i = e.encoding.length - 1; i > 0; i --) {
+        for (var i = 0; i < e.encoding.length; i ++) {
           if (i == e.encoding.length - 1) {
             // leaf node
-            curr_node['name'] = e.sym
-            curr_node.children = 'null'
-            curr_node.parent = e.encoding.slice(0, i)
-            console.log(curr_node)
-          } else if (i != 1) {
+            //console.log(e.encoding.slice(0, i+1))
+            //console.log(e.encoding.slice(0, i))
+            nodes.push({ 'id': e.sym, 'group': i })
+            links.push({ 'source': e.sym, 'target': e.encoding.slice(0, i), 'value': i })
+          } else {
+            // not a leaf node
+            if (i == 0) {
+              // root
+              nodes.push({ 'id': e.encoding.slice(0, i+1), 'group': i })
+            } else {
+              // not root
+              nodes.push({ 'id': e.encoding.slice(0, i+1), 'group': i })
+              links.push({ 'source': e.encoding.slice(0, i+1), 'target': e.encoding.slice(0, i), 'value': i })
+            }
           }
         }
-        console.log(curr_node)
       })
-      return Array.from(new Set(tree_data))
+
+      function remove_dup_nodes(nodes) {
+        var obj = {  }
+        for ( var i=0, len=nodes.length; i < len; i++ )
+          obj[nodes[i]['id']] = nodes[i]
+        
+        new_nodes = new Array()
+        for ( var key in obj )
+          new_nodes.push(obj[key]);
+        return new_nodes
+      }
+
+      function remove_dup_links(links) {
+        var obj = {  }
+        for ( var i=0, len=links.length; i < len; i++ )
+          obj[links[i]['source']+links[i]['target']] = links[i]
+        
+        new_links = new Array()
+        for ( var key in obj )
+          new_links.push(obj[key]);
+        return new_links
+      }
+
+      console.log(remove_dup_links(links))
+      console.log(remove_dup_nodes(nodes))
+      return { 'nodes': nodes, 'links': links }
     }
 
   </script>
@@ -173,20 +207,12 @@ body {
       //draw(tree_data)
       var ws = new WebSocket("ws://192.168.2.79:8888/ws");
       ws.onopen = function() {
-        console.log($('#text-input')[0].value)
         ws.send($('#text-input')[0].value)
         ws.onmessage = function (evt) {
           // append info node
           append_info_node(evt)
-          var tmp = compute_tree_data(JSON.parse(evt.data).encoding.symbols)
-          console.log(tmp)
-          var tree_data = [ { 'name': '0', children: [
-            { 'name': '00', parent: '0' },
-            { 'name': '01', parent: '0' },
-            
-          ], parent: 'null' } ]
-
-          draw(tree_data)
+          graph = compute_tree_data(JSON.parse(evt.data).encoding.symbols)
+          run(graph)
         }
       }
     })
@@ -231,187 +257,105 @@ function append_info_node(msg) {
   </script>
 
   <!-- load the d3.js library -->	
-  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script>
+  
+  var data_ = {
+  "nodes": [
+    {"id": "Myriel", "group": 1},
+    {"id": "Mme.Hucheloup", "group": 8}
+  ],
+  "links": [
+        {"source": "Child2", "target": "Child1", "value": 3},
+    {"source": "Brujon", "target": "Babet", "value": 3},
+  ]
+  }
+  </script>
   <style>
-.node {
-  cursor: pointer;
+
+.links line {
+  stroke: #999;
+  stroke-opacity: 0.6;
 }
 
-    .node circle {
-      fill: #fff;
-      stroke: steelblue;
-      stroke-width: 3px;
-    }
+.nodes circle {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
 
-    .node text {
-      font: 12px sans-serif;
-    }
-
-    .link {
-      fill: none;
-      stroke: #ccc;
-      stroke-width: 2px;
-    }
   </style>
+  <script src="https://d3js.org/d3.v4.min.js"></script>
   <script>
-    // d3.js
 
-    var tree_data = [
-      {
-        "name": "Top Level",
-        "parent": "null",
-        "children": [
-          {
-            "name": "Level 2: A",
-            "parent": "Top Level",
-            "children": [
-              {
-                "name": "Son of A",
-                "parent": "Level 2: A"
-              },
-              {
-                "name": "Daughter of A",
-                "parent": "Level 2: A"
-              }
-            ]
-          },
-          {
-            "name": "Level 2: B",
-            "parent": "Top Level"
-          } 
-        ]
-      }
-    ];
+    var svg = d3.select("svg"),
+  width = +svg.attr("width"),
+  height = +svg.attr("height");
 
+var color = d3.scaleOrdinal(d3.schemeCategory20);
 
-// ************** Generate the tree diagram	 *****************
-function draw(treeData) {
-  var margin = {top: 5, right: 20, bottom: 250, left: 5},
-    width = 500 - margin.right - margin.left,
-    height = 500 - margin.top - margin.bottom;
+var simulation = d3.forceSimulation()
+  .force("link", d3.forceLink().id(function(d) { return d.id; }))
+  .force("charge", d3.forceManyBody())
+  .force("center", d3.forceCenter(width / 2, height / 2));
 
-  var i = 0,
-    duration = 750,
-    root;
+function run (graph) {
 
-  var tree = d3.layout.tree()
-    .size([height, width]);
+  var link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("line")
+    .data(graph.links)
+    .enter().append("line")
+    .attr("stroke-width", function(d) { return Math.sqrt(d.value); });
 
-  var diagonal = d3.svg.diagonal()
-    .projection(function(d) { return [d.y, d.x]; });
+  var node = svg.append("g")
+    .attr("class", "nodes")
+    .selectAll("circle")
+    .data(graph.nodes)
+    .enter().append("circle")
+    .attr("r", 5)
+    .attr("fill", function(d) { return color(d.group); })
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended));
 
-  var svg = d3.select("#plot-area").append("svg")
-    .attr("width", width + margin.right + margin.left)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+  node.append("title")
+    .text(function(d) { return d.id; });
 
-  root = treeData[0];
-  root.x0 = height / 2;
-  root.y0 = 0;
+  simulation
+    .nodes(graph.nodes)
+    .on("tick", ticked);
 
-  update(root);
+  simulation.force("link")
+    .links(graph.links);
 
-  d3.select(self.frameElement).style("height", "420px");
+  function ticked() {
+    link
+      .attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
 
-  function update(source) {
-
-    // Compute the new tree layout.
-    var nodes = tree.nodes(root).reverse(),
-      links = tree.links(nodes);
-
-    // Normalize for fixed-depth.
-    nodes.forEach(function(d) { d.y = d.depth * 180; });
-
-    // Update the nodes…
-    var node = svg.selectAll("g.node")
-      .data(nodes, function(d) { return d.id || (d.id = ++i); });
-
-    // Enter any new nodes at the parent's previous position.
-    var nodeEnter = node.enter().append("g")
-      .attr("class", "node")
-      .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
-      .on("click", click);
-
-    nodeEnter.append("circle")
-      .attr("r", 1e-6)
-      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
-
-    nodeEnter.append("text")
-      .attr("x", function(d) { return d.children || d._children ? -13 : 13; })
-      .attr("dy", ".35em")
-      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-      .text(function(d) { return d.name; })
-      .style("fill-opacity", 1e-6);
-
-    // Transition nodes to their new position.
-    var nodeUpdate = node.transition()
-      .duration(duration)
-      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
-
-    nodeUpdate.select("circle")
-      .attr("r", 10)
-      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
-
-    nodeUpdate.select("text")
-      .style("fill-opacity", 1);
-
-    // Transition exiting nodes to the parent's new position.
-    var nodeExit = node.exit().transition()
-      .duration(duration)
-      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
-      .remove();
-
-    nodeExit.select("circle")
-      .attr("r", 1e-6);
-
-    nodeExit.select("text")
-      .style("fill-opacity", 1e-6);
-
-    // Update the links…
-    var link = svg.selectAll("path.link")
-      .data(links, function(d) { return d.target.id; });
-
-    // Enter any new links at the parent's previous position.
-    link.enter().insert("path", "g")
-      .attr("class", "link")
-      .attr("d", function(d) {
-        var o = {x: source.x0, y: source.y0};
-        return diagonal({source: o, target: o});
-      });
-
-    // Transition links to their new position.
-    link.transition()
-      .duration(duration)
-      .attr("d", diagonal);
-
-    // Transition exiting nodes to the parent's new position.
-    link.exit().transition()
-      .duration(duration)
-      .attr("d", function(d) {
-        var o = {x: source.x, y: source.y};
-        return diagonal({source: o, target: o});
-      })
-      .remove();
-
-    // Stash the old positions for transition.
-    nodes.forEach(function(d) {
-      d.x0 = d.x;
-      d.y0 = d.y;
-    });
+    node
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; });
   }
+};
 
-  // Toggle children on click.
-  function click(d) {
-    if (d.children) {
-      d._children = d.children;
-      d.children = null;
-    } else {
-      d.children = d._children;
-      d._children = null;
-    }
-    update(d);
-  }
+function dragstarted(d) {
+  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(d) {
+  d.fx = d3.event.x;
+  d.fy = d3.event.y;
+}
+
+function dragended(d) {
+  if (!d3.event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
 }
   </script>
 </html>
